@@ -12,7 +12,7 @@
 ## 获取chart
 
 ```console
-helm repo add fogcloud-charts https://fogcloud-io.github.io/fogedge-charts
+helm repo add fogedge-charts https://fogcloud-io.github.io/fogedge-charts
 helm repo update
 helm pull fogedge-charts/fogedge --untar
 ```
