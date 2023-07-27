@@ -1,0 +1,100 @@
+{{ if eq .Values.mqttBroker.type "nanomq" }}
+{{ $app := .Values.mqttBroker }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+{{ include "fogedge.labels" . | indent 4 }}
+    component: mqtt-broker
+  name: mqtt-broker
+spec:
+  replicas: {{ $app.replicas }}
+  serviceName: mqtt-broker
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: mqtt-broker
+  template:
+    metadata:
+      annotations: {}
+      labels:
+        app: mqtt-broker
+    spec:
+      containers:
+      - image: {{ $app.webhookSidecarImage }}
+        imagePullPolicy: {{ .Values.imagePullPolicy }}
+        env:
+        - name: "FOGCORE_URL"
+          value: "fogcore:{{ .Values.fogcore.service.grpc.port }}"
+          # {{- if .Values.fogcore.service.rest.internalTLSEnabled }}
+          # value: "https://fogcore:{{ .Values.fogcore.service.rest.port }}/mqtt/auth"
+          # {{- else }}
+          # value: "http://fogcore:{{ .Values.fogcore.service.rest.port }}/mqtt/auth"
+          # {{- end }}
+        name: webhook
+        {{- if $app.resources }}
+        resources:
+{{ toYaml $app.resources | indent 10 }}
+        {{- end }}
+      - image: {{ $app.image }}
+        imagePullPolicy: {{ .Values.imagePullPolicy }}
+        name: mqtt-broker
+        {{- if $app.resources }}
+        resources:
+{{ toYaml $app.resources | indent 10 }}
+        {{- end }}
+        env: []
+        args: ["--conf", "/etc/nanomq/nanomq.conf"]
+        volumeMounts:
+        - name: nanomq-data
+          mountPath: /var/lib/nanomq/data
+        - name: nanomq-conf
+          mountPath: /etc/nanomq/nanomq.conf
+          subPath: nanomq.conf
+        - name: nanomq-certs
+          mountPath: /etc/certs/server.crt
+          subPath: server.crt
+        - name: nanomq-certs
+          mountPath: /etc/certs/server.key
+          subPath: server.key
+        - name: nanomq-certs
+          mountPath: /etc/certs/ca.crt
+          subPath: ca.crt          
+      volumes:
+      - name: nanomq-conf
+        configMap:
+          name: nanomq-config
+          items:
+          - key: nanomq.conf
+            path: nanomq.conf
+      - name: nanomq-certs
+        secret:
+          secretName: {{ .Values.expose.tls.cert.secretName }}
+          items:
+          - key: tls.crt
+            path: server.crt
+          - key: tls.key
+            path: server.key
+          - key: ca.crt
+            path: ca.crt
+      restartPolicy: {{ $app.restartPolicy }}
+      imagePullSecrets:
+        {{- range $_, $secret := .Values.imagePullSecrets }}
+        - name: {{ $secret.name }}
+        {{- end }}
+  volumeClaimTemplates:
+    - metadata:
+        name: nanomq-data
+        annotations:
+          {{- if .Values.persistenceKeep }}
+          "helm.sh/resource-policy": keep
+          {{- end }}
+          volume.alpha.kubernetes.io/storage-class: manual
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        storageClassName: {{ $app.persistence.storageClassName }}
+        resources:
+          requests:
+            storage: {{ $app.persistence.storage }}  
+{{ end }}

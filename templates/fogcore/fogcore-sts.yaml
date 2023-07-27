@@ -1,0 +1,78 @@
+{{ $app := .Values.fogcore }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+{{ include "fogedge.labels" . | indent 4 }}
+    component: fogcore
+  name: fogcore
+spec:
+  replicas: {{ $app.replicas }}
+  serviceName: fogcore
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: fogcore
+  template:
+    metadata:
+      annotations: {}
+      labels:
+        app: fogcore
+    spec:
+      containers:
+      - image: {{ $app.image }}
+        imagePullPolicy: {{ .Values.imagePullPolicy }}
+        name: fogcore
+        {{- if $app.resources }}
+        resources:
+{{ toYaml $app.resources | indent 10 }}
+        {{- end }}
+        env:
+          {{- range $fields := $app.envVars }}
+          - name: {{ $fields.name }}
+            value: "{{ $fields.value }}"
+          {{- end }}
+          - name: FOG_MQTT_USERNAME
+            value: {{ .Values.mqttBroker.users.fogcore.username }}
+          - name: FOG_MQTT_PASSWORD
+            value: "{{ .Values.mqttBroker.users.fogcore.password }}"
+          - name: FOG_ENABLE_TLS
+            value: "{{ $app.service.rest.internalTLSEnabled }}"
+        volumeMounts:
+        - name: fogcore-data
+          mountPath: /var/lib/fogcore/data
+        - name: fogcore-certs
+          mountPath: /etc/fogcore/tls.crt
+          subPath: tls.crt
+        - name: fogcore-certs
+          mountPath: /etc/fogcore/tls.key
+          subPath: tls.key
+      restartPolicy: {{ $app.restartPolicy }}
+      volumes:
+      - name: fogcore-certs
+        secret:
+          secretName: {{ .Values.expose.tls.cert.secretName }}
+          items:
+          - key: tls.crt
+            path: tls.crt
+          - key: tls.key
+            path: tls.key
+      imagePullSecrets:
+        {{- range $_, $secret := .Values.imagePullSecrets }}
+        - name: {{ $secret.name }}
+        {{- end }}
+  volumeClaimTemplates:
+    - metadata:
+        name: fogcore-data
+        annotations:
+          {{- if .Values.persistenceKeep }}
+          "helm.sh/resource-policy": keep
+          {{- end }}
+          volume.alpha.kubernetes.io/storage-class: manual
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        storageClassName: {{ $app.persistence.storageClassName }}
+        resources:
+          requests:
+            storage: {{ $app.persistence.storage }}

@@ -1,0 +1,66 @@
+{{ $app := .Values.fogcore }}
+{{ $svc := .Values.expose }}
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+{{ include "fogedge.labels" . | indent 4 }}
+  name: fogcore
+  annotations:
+    {{- if $app.service.rest.internalTLSEnabled }}
+    traefik.ingress.kubernetes.io/service.serversscheme: https
+    {{- end }}
+spec:
+  {{- if eq $svc.type "Ingress" }}
+  type: ClusterIP
+  {{- else if eq $svc.type "LoadBalancer" }}
+  type: NodePort
+  {{- else }}
+  type: {{ $svc.type }}
+  {{- end }}
+  {{- if eq $svc.type "LoadBalancer" }}
+  externalTrafficPolicy: {{ $svc.LoadBalancer.externalTrafficPolicy }}
+  ports:
+  - name: rest
+    port: {{ $app.service.rest.port }}
+    targetPort: {{ $app.service.rest.targetPort }}
+    nodePort: {{ $svc.LoadBalancer.ports.rest.nodePort }}
+  - name: grpc
+    port: {{ $app.service.grpc.port }}
+    targetPort: {{ $app.service.grpc.targetPort }}
+    nodePort: {{ $svc.LoadBalancer.ports.grpc.nodePort }}
+  - name: webhook 
+    port: {{ $app.service.webhook.port }}
+    targetPort: {{ $app.service.webhook.targetPort }}
+  {{- end }} 
+  {{- if eq $svc.type "NodePort" }}
+  externalTrafficPolicy: {{ $svc.NodePort.externalTrafficPolicy }}
+  ports:
+  - name: rest
+    port: {{ $app.service.rest.port }}
+    targetPort: {{ $app.service.rest.targetPort }}
+    nodePort: {{ $svc.NodePort.ports.rest.nodePort }}
+  - name: grpc
+    port: {{ $app.service.grpc.port }}
+    targetPort: {{ $app.service.grpc.targetPort }}
+    nodePort: {{ $svc.NodePort.ports.grpc.nodePort }}
+  - name: webhook 
+    port: {{ $app.service.webhook.port }}
+    targetPort: {{ $app.service.webhook.targetPort }}
+  {{- end }}   
+  {{- if or (eq $svc.type "Ingress") (eq $svc.type "ClusterIP") }}
+  ports:
+  - name: rest
+    port: {{ $app.service.rest.port }}
+    targetPort: {{ $app.service.rest.targetPort }}
+  - name: grpc
+    port: {{ $app.service.grpc.port }}
+    targetPort: {{ $app.service.grpc.targetPort }}
+  - name: webhook 
+    port: {{ $app.service.webhook.port }}
+    targetPort: {{ $app.service.webhook.targetPort }}
+  {{- end }}
+  selector:
+    app: fogcore
+status:
+  loadBalancer: {}

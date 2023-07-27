@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: fogagent
+  
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: fogedge-addons-manager 
+rules:
+  - apiGroups: [ "" ]
+    resources: [ "namespaces" ]
+    verbs: [ "get", "create" ]
+  - apiGroups: [ "apps" ]
+    resources: [ "deployments","deployments/scale" ]
+    verbs: [ "*" ]
+
+---
+kind: ClusterRoleBinding 
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: fogedge-addons-manager-bind
+subjects:
+- kind: ServiceAccount
+  name: fogagent
+  namespace: {{ .Release.Namespace }}
+  apiGroup: ""
+roleRef:
+  kind: ClusterRole
+  name: fogedge-addons-manager
+  apiGroup: rbac.authorization.k8s.io

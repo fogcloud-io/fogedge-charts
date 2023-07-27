@@ -1,0 +1,30 @@
+{{ if eq .Values.expose.type "Ingress" }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+{{ toYaml .Values.expose.Ingress.annotations | indent 4 }}
+  labels:
+{{ include "fogedge.labels" . | indent 4 }}  
+    ing: fogedge-ingress
+  name: fogedge-ingress
+spec:
+  {{- if .Values.expose.tls.enabled }}
+  tls:
+    - hosts:
+        - "{{ .Values.expose.Ingress.hosts.rest }}"
+      secretName: {{ .Values.expose.tls.cert.secretName }}
+  {{- end }}    
+  ingressClassName: {{ .Values.expose.Ingress.className }} #import !!!
+  rules:
+    - host: {{ .Values.expose.Ingress.hosts.rest }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: fogcore
+                port:
+                  number: {{ .Values.fogcore.service.rest.port }}
+{{ end }}

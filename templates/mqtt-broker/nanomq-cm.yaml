@@ -1,0 +1,422 @@
+{{ if eq .Values.mqttBroker.type "nanomq" }}
+{{ $app := .Values.mqttBroker }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nanomq-config
+data:
+  nanomq.conf: |+
+    system {
+      # # daemon
+      # # Run the NanoMQ broker in a daemon mode
+      # #
+      # # Value: true | false
+      daemon = false
+      
+      # # num_taskq_thread
+      # # Use a specified number of taskq threads 
+      # #
+      # # Value: 1-255, Obtain automatically if 0
+      num_taskq_thread = 0
+      
+      # # max_taskq_thread
+      # # Use a specified maximunm number of taskq threads
+      # #
+      # # Value: 1-255, Obtain automatically if 0
+      max_taskq_thread = 0
+      
+      # # parallel
+      # # Handle a specified maximum number of outstanding requests
+      # #
+      # # Value: 1-255, Obtain automatically if 0
+      parallel = 0
+
+      ## enable internal IPC server
+      ## allow IPC server
+      ##
+      ## This is for CMD parsing & Gateway/Plugins control
+      ## Value: true | false
+      enable_ipc_internal=true
+    }
+
+    sqlite {
+      # # Max message limitation for caching
+      # # ( 0 means ineffective )
+      # # Value: 1-infinity
+      disk_cache_size = 102400
+      # # Mounted file path 
+      # #
+      # # Value: path
+      # mounted_file_path="/var/lib/nanomq/data"
+      
+      # # The threshold of flushing messages to flash. 
+      # #
+      # # Hot updatable
+      # # Value: 1-infinity
+      flush_mem_threshold = 100
+      
+      # # Resend interval (ms)
+      # # The interval for resending the messages after failure recovered. (not related to trigger)
+      # # 
+      # # Value: 1-infinity 
+      resend_interval = 5000
+    }
+
+    mqtt.session {
+      # # Property_size
+      # # The max size for a MQTT user property
+      # #
+      # # Hot updatable
+      # # Value: 1-infinity
+      property_size = 32
+      
+      # # The max packet size of NanoMQ (Kbytes)
+      # # Defines the max size of a packet that NanoMQ could accept
+      # #
+      # # Hot updatable
+      # # Value: 1 Byte-260 Mb
+      max_packet_size = 102400
+      
+      # # The default max packet size of each client (Kbytes)
+      # # Defines the default max size limit of sending packet to each client
+      # # Will be overwrite if client set its own max size limit
+      # #
+      # # Hot updatable
+      # # Value: 1 Byte-260 Mb
+      client_max_packet_size = 102400
+      
+      # # msq_len
+      # # The queue length in-flight window
+      # # This is essential for performance and memory consumption
+      # #
+      # # Hot updatable
+      # # Value: 1-infinity
+      msq_len = 2048
+      
+      # # qos_duration (s)
+      # # The nano qos duration which also controls timer interval of each pipe
+      # #
+      # # Hot updatable
+      # # Value: 1-infinity
+      qos_duration = 10s
+      
+      # # The backoff for MQTT keepalive timeout.
+      # # broker will discolse client when there is no activity for
+      # # 'Keepalive * backoff * timeout.
+      # #
+      # # Hot updatable
+      # # Value: Float > 0.5
+      keepalive_backoff = 1250
+      
+      # # anonymous
+      # # allow anonymous login
+      # #
+      # # Hot updatable
+      # # Value: true | false
+      allow_anonymous = true
+      
+      
+    }
+
+    listeners.tcp {
+      # # enable tcp
+      # # 
+      # # Value: true | false
+      enable = true
+      
+      # # bind
+      # # Connect with the host and port
+      # #
+      # # Value: host:port
+      bind = "0.0.0.0:1883"
+    }
+
+    # #============================================================
+    # # TLS/SSL
+    # #============================================================
+
+    listeners.ssl {
+      # # enable tls
+      # # 
+      # # Value: true | false
+      enable = false
+      
+      # # tls url
+      # #
+      # # Value: "host:port"
+      bind = "0.0.0.0:8883"
+      
+      # # tls key password
+      # # String containing the user's password. Only used if the private keyfile
+      # # is password-protected.
+      # #
+      # # Value: String
+      #key_password="1234"
+      
+      # # tls keyfile
+      # # Path to the file containing the user's private PEM-encoded key.
+      # #
+      # # Value: File
+      keyfile = "/etc/certs/server.key"
+      
+      # # tls cert file
+      # # Path to a file containing the user certificate.
+      # #
+      # # Value: File
+      certfile = "/etc/certs/server.crt"
+      
+      # # tls ca cert file
+      # # Path to the file containing PEM-encoded CA certificates. The CA certificates
+      # # are used during server authentication and when building the client certificate chain.
+      # #
+      # # Value: File
+      cacertfile = "/etc/certs/ca.crt"
+      
+      # # A server only does x509-path validation in mode verify_peer,
+      # # as it then sends a certificate request to the client (this
+      # # message is not sent if the verify option is verify_none).
+      # # You can then also want to specify option fail_if_no_peer_cert.
+      # #
+      # # Value: true: verify_peer | false: verify_none
+      verify_peer = false
+      
+      # # Used together with {verify, verify_peer} by an SSL server. If set to true,
+      # # the server fails if the client does not have a certificate to send, that is,
+      # # sends an empty certificate.
+      # #
+      # # Value: true | false
+      fail_if_no_peer_cert = false
+    }
+
+    # #============================================================
+    # # WebSocket
+    # #============================================================
+    listeners.ws {
+      # # allow websocket
+      # #
+      # # Value: true | false
+      enable = true
+      
+      # # websocket url
+      # #
+      # # Value: "host:port/path"
+      bind = "0.0.0.0:8083/mqtt"
+    }
+
+    # #============================================================
+    # # Http server
+    # #============================================================
+    http_server {
+      # # allow http server
+      # #
+      # # Value: true | false
+      enable = true
+      # # http server port
+      # #
+      # # Value: 0 - 65535
+      port = 8081
+      # # parallel for http server
+      # # Handle a specified maximum number of outstanding requests
+      # #
+      # # Value: 1-infinity
+      parallel = 32
+      # # http server username
+      # #
+      # # Value: String
+      username = admin
+      # # http server password
+      # #
+      # # Value: String
+      password = public
+      # # http server auth type
+      # # If set auth_type=jwt, make sure you have built JWT dependency with `-DENABLE_JWT=ON` first.
+      # #
+      # # Value: String basic | jwt
+      auth_type = basic
+      jwt {
+        # # http server jwt public key file
+        # # Used together with 'http_server.auth_type=jwt',
+        # # Path to the file containing the user's private key.
+        # #
+        # # Value: File
+        public.keyfile = "/etc/certs/jwt/jwtRS256.key.pub"
+        # # http server jwt private key file
+        # # Used together with 'http_server.auth_type=jwt',
+        # # Path to the file containing the user's publick key.
+        # #
+        # # Value: File
+        private.keyfile = "/etc/certs/jwt/jwtRS256.key"
+      }
+    }
+
+    # # ------------------ Logging Config ------------------ ##
+    log {
+      # # Where to emit the logs.
+      # #
+      # # - file: write logs to file
+      # # - console: write logs to standard I/O
+      # # - syslog: write logs to syslog
+      # # Value: file | console | syslog
+      # # Example: file,console,syslog
+      to = [file, console]
+      # # The log severity level.
+      # #
+      # # Value: trace | debug | info | warn | error | fatal
+      # #
+      # # Note: Only the messages with severity level higher than or equal to
+      # #       this level will be logged.
+      # #
+      # # Default: warn
+      level = debug
+      # # The dir for log files.
+      # #
+      # # Value: Folder
+      dir = "/tmp"
+      # # The log filename for logs of level specified in "log.level".
+      # #
+      # # Value: String
+      # # Default: nanomq.log
+      file = "nanomq.log"
+      rotation {
+        # # Maximum size of each log file.
+        # #
+        # # Value: Number
+        # # Default: 10M
+        # # Supported Unit: KB | MB | GB
+        size = 10MB
+        # # Maximum rotation count of log files.
+        # #
+        # # Value: Number
+        # # Default: 5
+        count = 5
+      }
+    }
+
+    # #============================================================
+    # # WebHook
+    # #============================================================
+
+    webhook {
+      ## Enable web hook
+      ##
+      ## Value: boolean
+      enable=true
+      ## Webhook URL
+      ##
+      ## Value: String
+      url="http://localhost:8881/mqtt/webhook"
+      ## HTTP Headers
+      ##
+      ## Example:
+      ## 1. web.hook.headers.content-type="application/json"
+      ## 2. web.hook.headers.accept="*"
+      ##
+      ## Value: String
+      headers.content-type="application/json"
+      ## The encoding format of the payload field in the HTTP body
+      ## The payload field only appears in the on_message_publish and on_message_delivered actions
+      ##
+      ## Value: plain | base64 | base62
+      body.encoding="base64"
+      ## Connection process pool size
+      ##
+      ## Value: Number
+      pool_size=32
+
+      # Unsupport now
+      # tls {
+      # # 	keyfile="/etc/certs/key.pem"
+      # # 	certfile="/etc/certs/cert.pem"
+      # # 	cacertfile="/etc/certs/cacert.pem"
+      # # }
+      # 
+    }
+
+    # webhook.rule.client.connected = [{action: on_client_connected}]
+    webhook.rule.client.disconnected = [{action: on_client_disconnected}]
+    # webhook.rule.message.publish = [{action: on_message_publish, topic: "devices/#"}]
+
+    authorization {
+      ## Allow or deny if no ACL rules matched.
+      ##
+      ## Value: allow | deny
+      no_match = allow
+      
+      ## The action when acl check reject current operation
+      ##
+      ## Value: ignore | disconnect
+      ## Default: ignore
+      deny_action = ignore
+
+      cache = {
+        ## Whether to enable ACL cache.
+        ##
+        ## If enabled, ACLs roles for each client will be cached in the memory
+        ##
+        ## Value: on | off
+        enable = false
+
+        ## The maximum count of ACL entries can be cached for a client.
+        ##
+        ## Value: Integer greater than 0
+        ## Default: 32
+        max_size = 32
+
+        ## The time after which an ACL cache entry will be deleted
+        ##
+        ## Value: Duration
+        ## Default: 1 minute
+        ttl = 1m
+      }
+
+      sources = [
+        {
+          type = simple
+          enable = true
+
+          users = [
+            {
+              username = {{ $app.users.fogcore.username }}
+              password = "{{ $app.users.fogcore.password }}"
+            }
+            {
+              username = {{ $app.users.fogagent.username }}
+              password = "{{ $app.users.fogagent.password }}"
+            }
+            {
+              username = {{ $app.users.fogaddon.username }}
+              password = "{{ $app.users.fogaddon.password }}"
+            }
+          ]
+        },
+        {
+          type = file
+          enable = false
+
+          rules = [
+            {"permit": "allow", "username": "{{ $app.users.fogcore.username }}", "action": "pubsub", "topics": ["fogedge/sys/#", "#"]}
+
+            {"permit": "allow", "username": "{{ $app.users.fogagent.username }}", "action": "subscribe", "topics": ["#"]}
+
+            {"permit": "allow", "username": "{{ $app.users.fogaddon.username }}", "action": "publish", "topics": ["#"]}
+
+            {"permit": "allow", "username": "{{ $app.users.fogaddon.username }}", "action": "subscribe", "topics": ["#"]}
+          ]
+        },
+        {
+          type = http
+          enable = true 
+          auth_req {
+            url = "http://localhost:8881/mqtt/auth"
+            method = POST
+            headers.content-type = "application/json"
+            params = {clientid = "%c", username = "%u", password = "%P"}
+          }
+          timeout = 10s
+          connect_timeout = 10s
+          pool_size = 32
+        }
+      ]
+    }
+
+{{ end }}

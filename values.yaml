@@ -1,0 +1,183 @@
+# Default values for fogedge.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# 公开服务
+expose:
+  type: NodePort # enum: NodePort,ClusterIP,LoadBalance,Ingress
+  tls:
+    enabled: false
+    cert:
+      # x509证书创建方式，支持manual, auto这两种方式
+      # manual: 手动创建，需要设置ca, crt, key
+      # auto: 自动生成
+      certSource: auto
+      secretName: fogedge-tls
+      dnsNames: ["fogcore", "mqtt-broker", "localhost"]
+      ipTables: ["127.0.0.1"]
+      ca: ""
+      crt: ""
+      key: ""
+  Ingress:
+    className: traefik-lb
+    createClass: false
+    controller: traefik.io/ingress-controller
+    annotations: {}
+    hosts:
+      rest: fogedge.io
+  NodePort:
+    externalTrafficPolicy: Local
+    ports:
+      rest:
+        nodePort: 8080
+      grpc:
+        nodePort: 9100
+  LoadBalancer:
+    externalTrafficPolicy: Local
+    healthCheckNodePort: 4000
+    ports:
+      rest:
+        nodePort: 8080
+      grpc:
+        nodePort: 9100
+
+imagePullPolicy: Always
+
+# 卸载时是否保存数据
+persistenceKeep: true
+
+# fogedge事件镜像
+addonsSidecarImage: registry.cn-shanghai.aliyuncs.com/fogcloud/fogevent:latest
+
+imagePullSecrets: 
+  # - registry:
+  #   name:
+  #   username:
+  #   password:
+  #   email: 
+
+# 是否开启遥测
+telemetryEnabled: true
+
+storageClassName: "local-path"
+
+fogcore:
+  replicas: 1
+  image: registry.cn-shanghai.aliyuncs.com/fogcloud/fogcore:latest
+  restartPolicy: Always
+  strategy: 
+    type: RollingUpdate
+    rollingUpdate: 
+      maxSurge: 25%
+      maxUnavailable: 25%
+  envVars:
+    - name: FOG_MQTT_BROKER_URL
+      value: "tcp://mqtt-broker.fogedge.svc.cluster.local:1883/mqtt"
+    - name: FOG_DB_DSN
+      value: "file:/var/lib/fogcore/data/fogedge.db?cache=shared&mode=rwc"
+  persistence:
+    pvcExisted: false
+    pvc: fogcore-pvc
+    storageClassName: local-path
+    storage: 100Mi
+  service:
+    rest:
+      # 当使用Ingress公开服务时，应该设置为false
+      internalTLSEnabled: false
+      port: 8080
+      targetPort: 8080
+    grpc:
+      port: 9100
+      targetPort: 9100
+    webhook:
+      port: 8081
+      targetPort: 8081
+  resources:
+    limits:
+      cpu: "0.1"
+      memory: "64Mi"
+    requests:
+      cpu: "0.01"
+      memory: "16Mi"
+
+fogagent:
+  replicas: 1
+  image: registry.cn-shanghai.aliyuncs.com/fogcloud/fogagent:latest
+  restartPolicy: Always
+  strategy: 
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  envVars:
+    - name: FOG_MQTT_BROKER_URL
+      value: "tcp://mqtt-broker.fogedge.svc.cluster.local:1883/mqtt"
+    - name: FOG_RPC_URL
+      value: "fogcore:9100"
+  resources:
+    limits:
+      cpu: "0.1"
+      memory: "64Mi"
+    requests:
+      cpu: "0.01"
+      memory: "16Mi"
+
+mqttBroker:
+  type: nanomq
+  replicas: 1
+  image: emqx/nanomq:0.18.2-slim
+  webhookSidecarImage: registry.cn-shanghai.aliyuncs.com/fogcloud/mqtt-webhook
+  strategy: 
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%  
+  restartPolicy: Always
+  users:
+    fogcore:
+      username: fogcore
+      password: "^%vC@_UjGjY^wrr6"
+    fogagent:
+      username: fogagent
+      password: "$WP46Y7_58y4t3nr"
+    fogaddon:
+      username: fogaddon
+      password: "jis42sP!Nc_#Hxw)"
+  persistence:
+    pvcExisted: false
+    pvc: nanomq-pvc
+    storageClassName: local-path
+    storage: 100Mi
+  resources:
+    limits:
+      cpu: "1"
+      memory: "64Mi"
+    requests:
+      cpu: "0.01"
+      memory: "8Mi"
+  service:
+    type: NodePort
+    externalTrafficPolicy: Local
+    healthCheckNodePort: 30000
+    ports:
+      mqttTcp:
+        port: 1883
+        nodePort: 1883
+      mqttTcpTls:
+        port: 8883
+        nodePort: 8883
+      httpApi:
+        port: 8081
+        nodePort: 8081
+      mqttWs:
+        port: 8083
+        nodePort: 8083
+      mqttWss:
+        port: 8084
+        nodePort: 8084
+
+  # autoscaling:
+  #   enabled: false
+  #   minReplicas: 1
+  #   maxReplicas: 100
+  #   targetCPUUtilizationPercentage: 80

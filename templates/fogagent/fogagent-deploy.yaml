@@ -1,0 +1,55 @@
+{{ $app := .Values.fogagent }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+{{ include "fogedge.labels" . | indent 4 }}
+    component: fogagent
+  name: fogagent
+spec:
+  replicas: {{ $app.replicas }}
+  selector:
+    matchLabels:
+      app: fogagent
+  strategy:
+    type: {{ $app.strategy.type }}
+    {{- if eq $app.strategy.type "RollingUpdate" }}
+    rollingUpdate:
+      maxSurge: {{ $app.strategy.rollingUpdate.maxSurge | default "50%" }}
+      maxUnavailable: {{ $app.strategy.rollingUpdate.maxUnavailable | default 0 }}
+    {{- end }}
+  template:
+    metadata:
+      annotations: {}
+      labels:
+        app: fogagent
+    spec:
+      serviceAccountName: fogagent
+      containers:
+      - image: {{ $app.image }}
+        imagePullPolicy: {{ .Values.imagePullPolicy }}
+        name: fogagent
+        {{- if $app.resources }}
+        resources:
+{{ toYaml $app.resources | indent 10 }}
+        {{- end }}
+        env:
+          {{- range $fields := $app.envVars }}
+          - name: {{ $fields.name }}
+            value: "{{ $fields.value }}"
+          {{- end }}
+          - name: FOG_MQTT_USERNAME
+            value: {{ .Values.mqttBroker.users.fogagent.username }}
+          - name: FOG_MQTT_PASSWORD
+            value: "{{ .Values.mqttBroker.users.fogagent.password }}"
+          - name: FOG_ADDONS_MQTT_USERNAME
+            value: "{{ .Values.mqttBroker.users.fogaddon.username }}"
+          - name: FOG_ADDONS_MQTT_PASSWORD
+            value: "{{ .Values.mqttBroker.users.fogaddon.password }}"
+          - name: FOG_ADDONS_SIDECAR_IMAGE
+            value: "{{ .Values.addonsSidecarImage }}"
+      restartPolicy: {{ $app.restartPolicy }}
+      imagePullSecrets:
+        {{- range $_, $secret := .Values.imagePullSecrets }}
+        - name: {{ $secret.name }}
+        {{- end }}
