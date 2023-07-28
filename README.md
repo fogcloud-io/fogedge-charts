@@ -1,5 +1,5 @@
 # fogedge-charts
-[![standard-readme compliant](https://img.shields.io/badge/licence-Apache%202.0-blue)](https://www.apache.org/licenses/LICENSE-2.0) [![standard-readme compliant](https://img.shields.io/static/v1?label=official&message=demo&color=<COLOR>)](https://app.fogcloud.io)
+[![standard-readme compliant](https://img.shields.io/static/v1?label=official&message=demo&color=<COLOR>)](https://app.fogcloud.io)
 
 [FogEdge]() 是一个边缘网关软件产品。
 
@@ -94,7 +94,3 @@ helm uninstall ${RELEASE_NAME} -n ${NAMESPACE_NAME}
 | `mqttBroker.nodeSelector.key` | k8s节点名 | |   
 | `mqttBroker.tls.enabled` | mqtt应用是否启用tls  | |
 | `mqttBroker.tls.createWithCertFile` | 是否使用证书文件创建mqtt应用的sercret对象，启用mqttBroker.internal.tls时有效；若为true，可将*.crt（证书）, *.key（密钥）文件放到fogcloud-charts/configs/cert/mqtt目录下 |  | 
-
-## 使用许可
-
-[Apache 2.0 License](https://github.com/fission/.github/blob/main/LICENSE).
